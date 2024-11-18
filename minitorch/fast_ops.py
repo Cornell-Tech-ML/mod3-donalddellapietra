@@ -168,23 +168,39 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # Check if tensors are stride-aligned
-        out_index = np.zeros(MAX_DIMS, np.int32)
-        in_index = np.zeros(MAX_DIMS, np.int32)
-        
-        # Fast path: when shapes are identical and strides are identical
+
         if np.array_equal(out_shape, in_shape) and np.array_equal(out_strides, in_strides):
             for i in prange(len(out)):
                 out[i] = fn(in_storage[i])
-            return
 
-        # Regular path: handle broadcasting and different strides
-        for i in prange(len(out)):
-            to_index(i, out_shape, out_index)
-            broadcast_index(out_index, out_shape, in_shape, in_index)
-            o = index_to_position(out_index, out_strides)
-            j = index_to_position(in_index, in_strides)
-            out[o] = fn(in_storage[j])
+        else:
+            for i in prange(len(out)):
+                out_index = np.empty(MAX_DIMS, np.int32)
+                in_index = np.empty(MAX_DIMS, np.int32)
+                to_index(i, out_shape, out_index)
+
+                broadcast_index(out_index, out_shape, in_shape, in_index)
+
+                o = index_to_position(out_index, out_strides)
+                j = index_to_position(in_index, in_strides)
+                out[o] = fn(in_storage[j])
+            
+        # else:
+
+        
+        # # Fast path: when shapes are identical and strides are identical
+        # if np.array_equal(out_shape, in_shape) and np.array_equal(out_strides, in_strides):
+        #     for i in prange(len(out)):
+        #         out[i] = fn(in_storage[i])
+        #     return
+
+        # # Regular path: handle broadcasting and different strides
+        # for i in prange(len(out)):
+        #     to_index(i, out_shape, out_index)
+        #     broadcast_index(out_index, out_shape, in_shape, in_index)
+        #     o = index_to_position(out_index, out_strides)
+        #     j = index_to_position(in_index, in_strides)
+        #     out[o] = fn(in_storage[j])
 
     return njit(_map, parallel=True)  # type: ignore
 
@@ -223,29 +239,25 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # Pre-allocate numpy buffers for indices
-        out_index = np.zeros(MAX_DIMS, np.int32)
-        a_index = np.zeros(MAX_DIMS, np.int32)
-        b_index = np.zeros(MAX_DIMS, np.int32)
-        
-        # Fast path: when all shapes and strides match
-        if (np.array_equal(out_shape, a_shape) and 
-            np.array_equal(out_shape, b_shape) and
-            np.array_equal(out_strides, a_strides) and
-            np.array_equal(out_strides, b_strides)):
+
+        if np.array_equal(out_shape, a_shape) and np.array_equal(out_shape, b_shape) and np.array_equal(out_strides, a_strides) and np.array_equal(out_strides, b_strides):
             for i in prange(len(out)):
                 out[i] = fn(a_storage[i], b_storage[i])
-            return
 
-        # Regular path: handle broadcasting and different strides
-        for i in prange(len(out)):
-            to_index(i, out_shape, out_index)
-            o = index_to_position(out_index, out_strides)
-            broadcast_index(out_index, out_shape, a_shape, a_index)
-            j = index_to_position(a_index, a_strides)
-            broadcast_index(out_index, out_shape, b_shape, b_index)
-            k = index_to_position(b_index, b_strides)
-            out[o] = fn(a_storage[j], b_storage[k])
+        else:
+            for i in prange(len(out)):
+                out_idx = np.zeros(MAX_DIMS, np.int32)
+                in_idx_a = np.zeros(MAX_DIMS, np.int32)
+                in_idx_b = np.zeros(MAX_DIMS, np.int32)
+                to_index(i, out_shape, out_idx)
+
+                broadcast_index(out_idx, out_shape, a_shape, in_idx_a)
+                broadcast_index(out_idx, out_shape, b_shape, in_idx_b)
+
+                in_pst_a = index_to_position(in_idx_a, a_strides)
+                in_pst_b = index_to_position(in_idx_b, b_strides)
+                out_pst = index_to_position(out_idx, out_strides)
+                out[out_pst] = fn(a_storage[in_pst_a], b_storage[in_pst_b])
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -280,26 +292,35 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        # Pre-allocate index buffer
-        out_index = np.zeros(MAX_DIMS, np.int32)
-        reduce_size = a_shape[reduce_dim]
-        
+
         # Parallel over all output positions
-        for i in prange(len(out)):
-            # Setup position
-            to_index(i, out_shape, out_index)
-            o = index_to_position(out_index, out_strides)
-            
-            # Local variables for reduction
-            reduce_value = out[o]
-            # Inner loop - use local variables only
-            for s in range(reduce_size):
-                out_index[reduce_dim] = s
-                j = index_to_position(out_index, a_strides)
-                reduce_value = fn(reduce_value, a_storage[j])
-            
-            # Write back result
-            out[o] = reduce_value
+        for out_index in prange(len(out)):
+            # Initialize an index array for the current output position
+            out_multi_index = np.empty(MAX_DIMS, np.int32)
+            # Get the size of the dimension to be reduced
+            reduction_dim_size = a_shape[reduce_dim]
+
+            # Convert the linear index to a multi-dimensional index
+            to_index(out_index, out_shape, out_multi_index)
+            # Calculate the position in the output storage
+            out_storage_pos = index_to_position(out_multi_index, out_strides)
+
+            # Determine the stride for the reduction dimension
+            reduction_stride = a_strides[reduce_dim]
+            # Calculate the starting position in the input storage
+            start_storage_pos = index_to_position(out_multi_index, a_strides)
+
+            # Initialize the accumulator with the current output value
+            accumulator = out[out_storage_pos]
+
+            # Iterate over the reduction dimension
+            for offset in range(reduction_dim_size):
+                # Calculate the current position in the input storage
+                current_storage_pos = start_storage_pos + offset * reduction_stride
+                # Apply the reduction function
+                accumulator = fn(accumulator, float(a_storage[current_storage_pos]))
+            # Store the result back in the output storage
+            out[out_storage_pos] = accumulator
 
     return njit(_reduce, parallel=True)  # type: ignore
 
@@ -334,8 +355,7 @@ def _tensor_matrix_multiply(
                     batch * out_strides[0] + 
                     i * out_strides[1] + 
                     j * out_strides[2]
-                )
-                
+                )  
                 # Initialize accumulator
                 acc = 0.0
                 

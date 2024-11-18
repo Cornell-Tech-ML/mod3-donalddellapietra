@@ -74,7 +74,7 @@ class Neg(Function):
         """Negate the gradient"""
         # print(ctx)
         # print(grad_output)
-        return -grad_output
+        return grad_output.f.neg_map(grad_output)
 
 
 class Inv(Function):
