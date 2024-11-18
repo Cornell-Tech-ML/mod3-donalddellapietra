@@ -168,8 +168,23 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        # Check if tensors are stride-aligned
+        out_index = np.zeros(MAX_DIMS, np.int32)
+        in_index = np.zeros(MAX_DIMS, np.int32)
+        
+        # Fast path: when shapes are identical and strides are identical
+        if np.array_equal(out_shape, in_shape) and np.array_equal(out_strides, in_strides):
+            for i in prange(len(out)):
+                out[i] = fn(in_storage[i])
+            return
+
+        # Regular path: handle broadcasting and different strides
+        for i in prange(len(out)):
+            to_index(i, out_shape, out_index)
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+            o = index_to_position(out_index, out_strides)
+            j = index_to_position(in_index, in_strides)
+            out[o] = fn(in_storage[j])
 
     return njit(_map, parallel=True)  # type: ignore
 
@@ -208,8 +223,29 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        # Pre-allocate numpy buffers for indices
+        out_index = np.zeros(MAX_DIMS, np.int32)
+        a_index = np.zeros(MAX_DIMS, np.int32)
+        b_index = np.zeros(MAX_DIMS, np.int32)
+        
+        # Fast path: when all shapes and strides match
+        if (np.array_equal(out_shape, a_shape) and 
+            np.array_equal(out_shape, b_shape) and
+            np.array_equal(out_strides, a_strides) and
+            np.array_equal(out_strides, b_strides)):
+            for i in prange(len(out)):
+                out[i] = fn(a_storage[i], b_storage[i])
+            return
+
+        # Regular path: handle broadcasting and different strides
+        for i in prange(len(out)):
+            to_index(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            j = index_to_position(a_index, a_strides)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
+            k = index_to_position(b_index, b_strides)
+            out[o] = fn(a_storage[j], b_storage[k])
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -244,8 +280,26 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        # TODO: Implement for Task 3.1.
-        raise NotImplementedError("Need to implement for Task 3.1")
+        # Pre-allocate index buffer
+        out_index = np.zeros(MAX_DIMS, np.int32)
+        reduce_size = a_shape[reduce_dim]
+        
+        # Parallel over all output positions
+        for i in prange(len(out)):
+            # Setup position
+            to_index(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            
+            # Local variables for reduction
+            reduce_value = out[o]
+            # Inner loop - use local variables only
+            for s in range(reduce_size):
+                out_index[reduce_dim] = s
+                j = index_to_position(out_index, a_strides)
+                reduce_value = fn(reduce_value, a_storage[j])
+            
+            # Write back result
+            out[o] = reduce_value
 
     return njit(_reduce, parallel=True)  # type: ignore
 
@@ -261,43 +315,47 @@ def _tensor_matrix_multiply(
     b_shape: Shape,
     b_strides: Strides,
 ) -> None:
-    """NUMBA tensor matrix multiply function.
-
-    Should work for any tensor shapes that broadcast as long as
-
-    ```
-    assert a_shape[-1] == b_shape[-2]
-    ```
-
-    Optimizations:
-
-    * Outer loop in parallel
-    * No index buffers or function calls
-    * Inner loop should have no global writes, 1 multiply.
-
-
-    Args:
-    ----
-        out (Storage): storage for `out` tensor
-        out_shape (Shape): shape for `out` tensor
-        out_strides (Strides): strides for `out` tensor
-        a_storage (Storage): storage for `a` tensor
-        a_shape (Shape): shape for `a` tensor
-        a_strides (Strides): strides for `a` tensor
-        b_storage (Storage): storage for `b` tensor
-        b_shape (Shape): shape for `b` tensor
-        b_strides (Strides): strides for `b` tensor
-
-    Returns:
-    -------
-        None : Fills in `out`
-
-    """
+    """NUMBA tensor matrix multiply function."""
     a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
 
-    # TODO: Implement for Task 3.2.
-    raise NotImplementedError("Need to implement for Task 3.2")
+    # Compute dimensions
+    batch_size = out_shape[0]
+    rows = out_shape[1]
+    cols = out_shape[2]
+    reduce_size = a_shape[2]
+
+    # Parallelize over batches and rows
+    for batch in prange(batch_size):
+        for i in prange(rows):
+            for j in range(cols):
+                # Get output position
+                out_pos = (
+                    batch * out_strides[0] + 
+                    i * out_strides[1] + 
+                    j * out_strides[2]
+                )
+                
+                # Initialize accumulator
+                acc = 0.0
+                
+                # Inner reduction loop
+                for k in range(reduce_size):
+                    # Compute positions in a and b
+                    a_pos = (
+                        batch * a_batch_stride + 
+                        i * a_strides[1] + 
+                        k * a_strides[2]
+                    )
+                    b_pos = (
+                        batch * b_batch_stride + 
+                        k * b_strides[1] + 
+                        j * b_strides[2]
+                    )
+                    acc += a_storage[a_pos] * b_storage[b_pos]
+                
+                # Store result
+                out[out_pos] = acc
 
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)

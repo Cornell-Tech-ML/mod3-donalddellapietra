@@ -374,7 +374,7 @@ class Tensor:
         """Change the shape of the tensor to a new shape with the same size"""
         return View.apply(self, tensor(list(shape)))
 
-    def zero_grad(self) -> None:  # pragma: no cover
+    def zero_grad_(self) -> None:  # pragma: no cover
         """Reset the derivative on this variable."""
         self.grad = None
 
