@@ -341,10 +341,10 @@ def tensor_reduce(
             output_position = index_to_position(out_index, out_strides)
 
             # Adjust the index for the reduction dimension
-            out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos
+            i = out_index[reduce_dim] * BLOCK_DIM + pos
 
             # Check if the adjusted index is within the input shape
-            if out_index[reduce_dim] < a_shape[reduce_dim]:
+            if i < a_shape[reduce_dim]:
                 # Calculate the position in the input storage
                 input_position = index_to_position(out_index, a_strides)
                 # Load the input value into shared memory
