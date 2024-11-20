@@ -239,7 +239,7 @@ def tensor_zip(
 
 
 def _sum_practice(out: Storage, a: Storage, size: int) -> None:
-    """This is a practice sum kernel to prepare for reduce.
+    r"""Hi, this is a practice sum kernel to prepare for reduce.
 
     Given an array of length $n$ and out of size $n // \text{blockDIM}$
     it should sum up each blockDim values into an out cell.
@@ -334,30 +334,45 @@ def tensor_reduce(
         out_pos = cuda.blockIdx.x
         pos = cuda.threadIdx.x
 
-                # Initialize shared memory
-        cache[pos] = reduce_value
+        a_index = cuda.local.array(MAX_DIMS, numba.int32)
+        thread_count = cuda.blockDim.x
 
-        # Calculate the global index
-        if pos < a_shape[reduce_dim]:
-            to_index(out_pos, out_shape, out_index)
-            out_index[reduce_dim] = pos
-            a_pos = index_to_position(out_index, a_strides)
-            cache[pos] = a_storage[a_pos]
+        # Convert out_pos to multi-dimensional index
+        to_index(out_pos, out_shape, out_index)
 
-        # Synchronize threads within the block
+        # Initialize accumulator with the reduce_value
+        acc = reduce_value
+
+        reduce_dim_size = a_shape[reduce_dim]
+
+        # Each thread processes elements along the reduce dimension
+        for i in range(pos, reduce_dim_size, thread_count):
+            # Copy out_index to a_index and set the reduce_dim index
+            for d in range(len(a_shape)):
+                a_index[d] = out_index[d]
+            a_index[reduce_dim] = i
+            a_pos = index_to_position(a_index, a_strides)
+            val = a_storage[a_pos]
+            acc = fn(acc, val)
+
+        # Store the partial result in shared memory
+        cache[pos] = acc
         cuda.syncthreads()
 
-        # Perform reduction in shared memory
-        stride = 1
-        while stride < BLOCK_DIM:
-            if pos % (2 * stride) == 0 and pos + stride < BLOCK_DIM:
+        # Perform parallel reduction within the block
+        stride = thread_count // 2
+        while stride > 0:
+            if pos < stride:
                 cache[pos] = fn(cache[pos], cache[pos + stride])
-            stride *= 2
             cuda.syncthreads()
+            stride //= 2
 
-        # Write the result for this block to global memory
+        # The first thread writes the result to the output tensor
         if pos == 0:
-            out[out_pos] = cache[0]
+            out_pos_in_out = index_to_position(out_index, out_strides)
+            out[out_pos_in_out] = cache[0]
+
+
 
     return jit(_reduce)  # type: ignore
 
