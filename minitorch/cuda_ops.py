@@ -176,8 +176,7 @@ def tensor_map(
 
         if i < out_size:
             to_index(i, out_shape, out_index)
-            for j in range(len(in_shape)):
-                in_index[j] = out_index[j] if j < len(out_index) else 0
+            broadcast_index(out_index, out_shape, in_shape, in_index)
             in_pos = index_to_position(in_index, in_strides)
             out_pos = index_to_position(out_index, out_strides)
             out[out_pos] = fn(in_storage[in_pos])
@@ -224,11 +223,8 @@ def tensor_zip(
 
         if i < out_size:
             to_index(i, out_shape, out_index)
-            for j in range(len(a_shape)):
-                a_index[j] = out_index[j] if j < len(out_index) else 0
-            for j in range(len(b_shape)):
-                b_index[j] = out_index[j] if j < len(out_index) else 0
-
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
             a_pos = index_to_position(a_index, a_strides)
             b_pos = index_to_position(b_index, b_strides)
             out_pos = index_to_position(out_index, out_strides)
@@ -334,51 +330,47 @@ def tensor_reduce(
         out_pos = cuda.blockIdx.x
         pos = cuda.threadIdx.x
 
-        a_index = cuda.local.array(MAX_DIMS, numba.int32)
-        thread_count = cuda.blockDim.x
+        # Initialize shared memory with the starting reduction value
+        cache[pos] = reduce_value
 
-        # Convert out_pos to multi-dimensional index
-        to_index(out_pos, out_shape, out_index)
+        # Check if the current block index is within the output size
+        if out_pos < out_size:
+            # Convert the block index to a multi-dimensional index
+            to_index(out_pos, out_shape, out_index)
+            # Calculate the position in the output storage
+            output_position = index_to_position(out_index, out_strides)
 
-        # Initialize accumulator with the reduce_value
-        acc = reduce_value
+            # Adjust the index for the reduction dimension
+            out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos
 
-        reduce_dim_size = a_shape[reduce_dim]
+            # Check if the adjusted index is within the input shape
+            if out_index[reduce_dim] < a_shape[reduce_dim]:
+                # Calculate the position in the input storage
+                input_position = index_to_position(out_index, a_strides)
+                # Load the input value into shared memory
+                cache[pos] = a_storage[input_position]
 
-        # Each thread processes elements along the reduce dimension
-        for i in range(pos, reduce_dim_size, thread_count):
-            # Copy out_index to a_index and set the reduce_dim index
-            for d in range(len(a_shape)):
-                a_index[d] = out_index[d]
-            a_index[reduce_dim] = i
-            a_pos = index_to_position(a_index, a_strides)
-            val = a_storage[a_pos]
-            acc = fn(acc, val)
-
-        # Store the partial result in shared memory
-        cache[pos] = acc
-        cuda.syncthreads()
-
-        # Perform parallel reduction within the block
-        stride = thread_count // 2
-        while stride > 0:
-            if pos < stride:
-                cache[pos] = fn(cache[pos], cache[pos + stride])
+            # Synchronize threads within the block
             cuda.syncthreads()
-            stride //= 2
 
-        # The first thread writes the result to the output tensor
-        if pos == 0:
-            out_pos_in_out = index_to_position(out_index, out_strides)
-            out[out_pos_in_out] = cache[0]
+            # Perform reduction using shared memory
+            step = 0
+            while (2**step) < BLOCK_DIM:
+                offset = 2**step
+                if pos % (2 * offset) == 0:
+                    cache[pos] = fn(cache[pos], cache[pos + offset])
+                cuda.syncthreads()
+                step += 1
 
-
+            # Write the reduced result to the output storage
+            if pos == 0:
+                out[output_position] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
 
 def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
-    """This is a practice square MM kernel to prepare for matmul.
+    """Hi, this is a practice square MM kernel to prepare for matmul.
 
     Given a storage `out` and two storage `a` and `b`. Where we know
     both are shape [size, size] with strides [size, 1].
