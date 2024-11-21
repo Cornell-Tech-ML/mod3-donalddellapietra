@@ -341,10 +341,10 @@ def tensor_reduce(
             output_position = index_to_position(out_index, out_strides)
 
             # Adjust the index for the reduction dimension
-            i = out_index[reduce_dim] * BLOCK_DIM + pos
+            out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos
 
             # Check if the adjusted index is within the input shape
-            if i < a_shape[reduce_dim]:
+            if out_index[reduce_dim] < a_shape[reduce_dim]:
                 # Calculate the position in the input storage
                 input_position = index_to_position(out_index, a_strides)
                 # Load the input value into shared memory
@@ -401,8 +401,47 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
 
     """
     BLOCK_DIM = 32
-    # TODO: Implement for Task 3.3.
-    raise NotImplementedError("Need to implement for Task 3.3")
+     # Shared memory for matrices A and B
+    a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
+    b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
+
+    # Thread indices
+    tx = cuda.threadIdx.x
+    ty = cuda.threadIdx.y
+
+    # Global indices
+    row = cuda.blockIdx.y * BLOCK_DIM + ty
+    col = cuda.blockIdx.x * BLOCK_DIM + tx
+
+    # Initialize the output value
+    temp = 0.0
+
+    # Loop over the tiles of the input matrices
+    for m in range((size + BLOCK_DIM - 1) // BLOCK_DIM):
+        # Load data into shared memory
+        if row < size and (m * BLOCK_DIM + tx) < size:
+            a_shared[ty, tx] = a[row * size + m * BLOCK_DIM + tx]
+        else:
+            a_shared[ty, tx] = 0.0
+
+        if col < size and (m * BLOCK_DIM + ty) < size:
+            b_shared[ty, tx] = b[(m * BLOCK_DIM + ty) * size + col]
+        else:
+            b_shared[ty, tx] = 0.0
+
+        # Synchronize to make sure the matrices are loaded
+        cuda.syncthreads()
+
+        # Multiply the two matrices together
+        for k in range(BLOCK_DIM):
+            temp += a_shared[ty, k] * b_shared[k, tx]
+
+        # Synchronize to make sure that the preceding computation is done
+        cuda.syncthreads()
+
+    # Write the block sub-matrix to global memory
+    if row < size and col < size:
+        out[row * size + col] = temp
 
 
 jit_mm_practice = jit(_mm_practice)
