@@ -93,6 +93,8 @@ class FastTrain:
         BATCH = 10
         losses = []
 
+        epoch_times = []
+
         for epoch in range(max_epochs):
             start_time = time.time()  # Start timing the epoch
 
@@ -120,7 +122,7 @@ class FastTrain:
             losses.append(total_loss)
 
             epoch_time = time.time() - start_time
-
+            epoch_times.append(epoch_time)
             # Logging
             if epoch % 10 == 0 or epoch == max_epochs:
                 X = minitorch.tensor(data.X, backend=self.backend)
@@ -129,7 +131,9 @@ class FastTrain:
                 y2 = minitorch.tensor(data.y)
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
                 log_fn(epoch, total_loss, correct, losses)
-                print(f"Epoch {epoch} took {epoch_time:.2f} seconds")
+
+            average_epoch_time = sum(epoch_times) / len(epoch_times)
+            print(f"Average epoch time: {average_epoch_time:.6f} seconds")
 
 
 if __name__ == "__main__":
@@ -150,7 +154,7 @@ if __name__ == "__main__":
     if args.DATASET == "xor":
         data = minitorch.datasets["Xor"](PTS)
     elif args.DATASET == "simple":
-        data = minitorch.datasets["Simple"].simple(PTS)
+        data = minitorch.datasets["Simple"](PTS)
     elif args.DATASET == "split":
         data = minitorch.datasets["Split"](PTS)
 

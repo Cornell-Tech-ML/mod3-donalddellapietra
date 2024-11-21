@@ -21,6 +21,27 @@ Several of the tests for this assignment will only run if you are on a GPU machi
 run on github's test infrastructure. Please follow the instructions to setup up a colab machine
 to run these tests.
 
+
+Here is a brief sanity check that the elementwise multiplication is slower than the real matrix multiplication. See the file test_manual.py for more details.
+
+![MMul Comparison](time_comparison.png)
+
+![Reduce Comparison](reduce_comparison.png)
+
+For numba:
+Average time for elementwise multiplication: 1.065640 seconds
+Average time for real matrix multiplication: 0.072189 seconds
+Average time for reduce: 0.003198 seconds
+Average time for reduce numba: 0.022610 seconds (note this is because I only did it 20 times, but as you can see it is faster than the regular version after the first iteration)
+
+For cuda:
+Average time for elementwise multiplication: 1.457392 seconds
+Average time for cuda matrix multiplication: 0.049690 seconds
+Average time for reduce: 0.004651 seconds
+Average time for reduce cuda: 0.015866 seconds
+
+
+
 SPLIT DATASET
 
 
