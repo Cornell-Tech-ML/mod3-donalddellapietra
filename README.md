@@ -373,3 +373,57 @@ Epoch  470  loss  0.3841719052952468 correct 50
 Epoch  480  loss  0.25541933750603657 correct 49
 Epoch  490  loss  1.0292334745997784 correct 50
 Average epoch time: 0.147571 seconds
+
+Larger Model: SPLIT DATASET
+
+Epoch  0  loss  6.919852590568096 correct 25
+Epoch  10  loss  2.920257140363284 correct 39
+Epoch  20  loss  3.284514850910986 correct 46
+Epoch  30  loss  1.3662369274465953 correct 45
+Epoch  40  loss  3.2071728268601283 correct 45
+Epoch  50  loss  1.8591543741018175 correct 47
+Epoch  60  loss  1.0315186188592427 correct 45
+Epoch  70  loss  1.4231044995664666 correct 49
+Epoch  80  loss  1.2783736781092396 correct 47
+Epoch  90  loss  1.4948192907792117 correct 49
+Epoch  100  loss  0.9703733457421975 correct 49
+Epoch  110  loss  0.5445155999420255 correct 46
+Epoch  120  loss  2.2455318138915734 correct 45
+Epoch  130  loss  0.1459786493063822 correct 49
+Epoch  140  loss  1.2350558625546981 correct 49
+Epoch  150  loss  1.2803857710297555 correct 49
+Epoch  160  loss  1.4769614746240662 correct 49
+Epoch  170  loss  1.0018367910383115 correct 50
+Epoch  180  loss  4.6173420618970455 correct 46
+Epoch  190  loss  0.7150639270307125 correct 50
+Epoch  200  loss  1.076781323049373 correct 50
+Epoch  210  loss  0.40545549302194017 correct 49
+Epoch  220  loss  2.0722164949776216 correct 49
+Epoch  230  loss  1.3871282062664574 correct 49
+Epoch  240  loss  0.575918501854492 correct 50
+Epoch  250  loss  0.12588545812368812 correct 47
+Epoch  260  loss  1.0819055971219285 correct 49
+Epoch  270  loss  1.777114887658081 correct 48
+Epoch  280  loss  0.13240124713257673 correct 49
+Epoch  290  loss  0.3949427338973955 correct 49
+Epoch  300  loss  0.13799862666741894 correct 50
+Epoch  310  loss  0.17368367620783692 correct 49
+Epoch  320  loss  0.031262170317267225 correct 50
+Epoch  330  loss  0.04269951320628675 correct 49
+Epoch  340  loss  0.27739927871686737 correct 49
+Epoch  350  loss  0.8222674774851295 correct 49
+Epoch  360  loss  0.41965044126213313 correct 49
+Epoch  370  loss  1.4747590414295715 correct 47
+Epoch  380  loss  0.4125179666768916 correct 49
+Epoch  390  loss  0.5012301289794648 correct 50
+Epoch  400  loss  0.7221514448552686 correct 49
+Epoch  410  loss  1.2114645186202035 correct 49
+Epoch  420  loss  0.06590723017866833 correct 49
+Epoch  430  loss  0.692533571928289 correct 49
+Epoch  440  loss  0.8891584883303697 correct 49
+Epoch  450  loss  1.284033885595464 correct 48
+Epoch  460  loss  0.3600033952947287 correct 49
+Epoch  470  loss  2.232172512227594 correct 47
+Epoch  480  loss  0.21719749436162192 correct 49
+Epoch  490  loss  1.591155785847511 correct 49
+Average epoch time: 0.292161 seconds
