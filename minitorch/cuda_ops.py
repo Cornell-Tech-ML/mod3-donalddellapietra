@@ -325,46 +325,94 @@ def tensor_reduce(
         reduce_value: float,
     ) -> None:
         BLOCK_DIM = 1024
+
+        MAX_DIMS = len(out_shape)
+
+        # Shared memory for partial reductions
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)
-        out_index = cuda.local.array(MAX_DIMS, numba.int32)
-        out_pos = cuda.blockIdx.x
         pos = cuda.threadIdx.x
+        out_pos = cuda.blockIdx.x
 
-        # Initialize shared memory with the starting reduction value
-        cache[pos] = reduce_value
-
-        # Check if the current block index is within the output size
+        # Ensure we're within the output size
         if out_pos < out_size:
-            # Convert the block index to a multi-dimensional index
+            # Compute the multi-dimensional index for the output position
+            out_index = cuda.local.array(MAX_DIMS, numba.int32)
             to_index(out_pos, out_shape, out_index)
-            # Calculate the position in the output storage
-            output_position = index_to_position(out_index, out_strides)
 
-            # Adjust the index for the reduction dimension
-            out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos
+            # Prepare the input index, copying from the output index
+            in_index = cuda.local.array(MAX_DIMS, numba.int32)
+            for d in range(MAX_DIMS):
+                in_index[d] = out_index[d]
 
-            # Check if the adjusted index is within the input shape
-            if out_index[reduce_dim] < a_shape[reduce_dim]:
-                # Calculate the position in the input storage
-                input_position = index_to_position(out_index, a_strides)
-                # Load the input value into shared memory
-                cache[pos] = a_storage[input_position]
+            # Initialize the reduction value
+            val = reduce_value
+            reduce_dim_size = a_shape[reduce_dim]
 
-            # Synchronize threads within the block
+            # Each thread processes multiple elements along the reduction dimension
+            for s in range(pos, reduce_dim_size, BLOCK_DIM):
+                in_index[reduce_dim] = s
+                a_pos = index_to_position(in_index, a_strides)
+                val = fn(val, a_storage[a_pos])
+
+            # Store the partial sum in shared memory
+            cache[pos] = val
             cuda.syncthreads()
 
-            # Perform reduction using shared memory
-            step = 0
-            while (2**step) < BLOCK_DIM:
-                offset = 2**step
-                if pos % (2 * offset) == 0:
-                    cache[pos] = fn(cache[pos], cache[pos + offset])
+            # Perform a tree-based reduction within shared memory
+            stride = BLOCK_DIM // 2
+            while stride > 0:
+                if pos < stride:
+                    cache[pos] = fn(cache[pos], cache[pos + stride])
                 cuda.syncthreads()
-                step += 1
+                stride //= 2
 
-            # Write the reduced result to the output storage
+            # Write the result to the output storage
             if pos == 0:
-                out[output_position] = cache[0]
+                out_pos_in_storage = index_to_position(out_index, out_strides)
+                out[out_pos_in_storage] = cache[0]
+
+
+
+        # cache = cuda.shared.array(BLOCK_DIM, numba.float64)
+        # out_index = cuda.local.array(MAX_DIMS, numba.int32)
+        # out_pos = cuda.blockIdx.x
+        # pos = cuda.threadIdx.x
+
+        # # Initialize shared memory with the starting reduction value
+        # cache[pos] = reduce_value
+
+        # # Check if the current block index is within the output size
+        # if out_pos < out_size:
+        #     # Convert the block index to a multi-dimensional index
+        #     to_index(out_pos, out_shape, out_index)
+        #     # Calculate the position in the output storage
+        #     output_position = index_to_position(out_index, out_strides)
+
+        #     # Adjust the index for the reduction dimension
+        #     out_index[reduce_dim] = out_index[reduce_dim] * BLOCK_DIM + pos
+
+        #     # Check if the adjusted index is within the input shape
+        #     if out_index[reduce_dim] < a_shape[reduce_dim]:
+        #         # Calculate the position in the input storage
+        #         input_position = index_to_position(out_index, a_strides)
+        #         # Load the input value into shared memory
+        #         cache[pos] = a_storage[input_position]
+
+        #     # Synchronize threads within the block
+        #     cuda.syncthreads()
+
+        #     # Perform reduction using shared memory
+        #     step = 0
+        #     while (2**step) < BLOCK_DIM:
+        #         offset = 2**step
+        #         if pos % (2 * offset) == 0:
+        #             cache[pos] = fn(cache[pos], cache[pos + offset])
+        #         cuda.syncthreads()
+        #         step += 1
+
+        #     # Write the reduced result to the output storage
+        #     if pos == 0:
+        #         out[output_position] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
