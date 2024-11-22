@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from typing import Callable, Optional
 
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Index, Shape, Storage, Strides  # noqa: F401
 
 # TIP: Use `NUMBA_DISABLE_JIT=1 pytest tests/ -m task3_1` to run these tests without JIT.
 
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 Fn = TypeVar("Fn")
 
 
-def njit(fn: Fn, **kwargs: Any) -> Fn:
+def njit(fn: Fn, **kwargs: Any) -> Fn:  # noqa: D103
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -79,7 +79,7 @@ class FastOps(TensorOps):
 
             # Other values when not sum.
             out = a.zeros(tuple(out_shape))
-            out._tensor._storage[:] = start
+            out._tensor._storage[:] = start  # type: ignore[call-overload, assignment]
 
             f(*out.tuple(), *a.tuple(), dim)
             return out
@@ -168,8 +168,9 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-
-        if np.array_equal(out_shape, in_shape) and np.array_equal(out_strides, in_strides):
+        if np.array_equal(out_shape, in_shape) and np.array_equal(
+            out_strides, in_strides
+        ):
             for i in prange(len(out)):
                 out[i] = fn(in_storage[i])
 
@@ -184,10 +185,9 @@ def tensor_map(
                 o = index_to_position(out_index, out_strides)
                 j = index_to_position(in_index, in_strides)
                 out[o] = fn(in_storage[j])
-            
+
         # else:
 
-        
         # # Fast path: when shapes are identical and strides are identical
         # if np.array_equal(out_shape, in_shape) and np.array_equal(out_strides, in_strides):
         #     for i in prange(len(out)):
@@ -239,8 +239,12 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-
-        if np.array_equal(out_shape, a_shape) and np.array_equal(out_shape, b_shape) and np.array_equal(out_strides, a_strides) and np.array_equal(out_strides, b_strides):
+        if (
+            np.array_equal(out_shape, a_shape)
+            and np.array_equal(out_shape, b_shape)
+            and np.array_equal(out_strides, a_strides)
+            and np.array_equal(out_strides, b_strides)
+        ):
             for i in prange(len(out)):
                 out[i] = fn(a_storage[i], b_storage[i])
 
@@ -292,7 +296,6 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-
         # Parallel over all output positions
         for out_index in prange(len(out)):
             # Initialize an index array for the current output position
@@ -352,28 +355,18 @@ def _tensor_matrix_multiply(
             for j in range(cols):
                 # Get output position
                 out_pos = (
-                    batch * out_strides[0] + 
-                    i * out_strides[1] + 
-                    j * out_strides[2]
-                )  
+                    batch * out_strides[0] + i * out_strides[1] + j * out_strides[2]
+                )
                 # Initialize accumulator
                 acc = 0.0
-                
+
                 # Inner reduction loop
                 for k in range(reduce_size):
                     # Compute positions in a and b
-                    a_pos = (
-                        batch * a_batch_stride + 
-                        i * a_strides[1] + 
-                        k * a_strides[2]
-                    )
-                    b_pos = (
-                        batch * b_batch_stride + 
-                        k * b_strides[1] + 
-                        j * b_strides[2]
-                    )
+                    a_pos = batch * a_batch_stride + i * a_strides[1] + k * a_strides[2]
+                    b_pos = batch * b_batch_stride + k * b_strides[1] + j * b_strides[2]
                     acc += a_storage[a_pos] * b_storage[b_pos]
-                
+
                 # Store result
                 out[out_pos] = acc
 

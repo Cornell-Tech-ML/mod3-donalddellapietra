@@ -16,7 +16,7 @@ from .tensor_data import (
 
 if TYPE_CHECKING:
     from .tensor import Tensor
-    from .tensor_data import OutIndex, Index, Shape, Storage, Strides
+    from .tensor_data import Index, Shape, Storage, Strides
 
 
 class MapProto(Protocol):
@@ -236,7 +236,6 @@ class SimpleOps(TensorOps):
 # Implementations.
 
 
-
 def tensor_map(fn: Callable[[float], float]) -> Any:
     """Low-level implementation of tensor map between tensors with *possibly different strides*.
 
@@ -249,6 +248,7 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
     assuming `out_shape` and `in_shape` broadcast. (`in_shape` must be smaller than `out_shape`).
 
     Args:
+    ----
         fn: function from float-to-float to apply
         out (array): storage for out tensor
         out_shape (array): shape for out tensor
@@ -258,8 +258,11 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
         in_strides (array): strides for in tensor
 
     Returns:
+    -------
         None: Fills in `out`
+
     """
+
     def _map(
         out: Storage,
         out_shape: Shape,
@@ -269,8 +272,8 @@ def tensor_map(fn: Callable[[float], float]) -> Any:
         in_strides: Strides,
     ) -> None:
         # ASSIGN2.2
-        out_index: Index = np.zeros(MAX_DIMS, np.int16)
-        in_index: Index = np.zeros(MAX_DIMS, np.int16)
+        out_index: Index = np.zeros(MAX_DIMS, np.int16)  # type: ignore[type-var]
+        in_index: Index = np.zeros(MAX_DIMS, np.int16)  # type: ignore[assignment]
 
         for i in range(len(out)):
             to_index(i, out_shape, out_index)
@@ -296,6 +299,7 @@ def tensor_zip(fn: Callable[[float, float], float]) -> Any:
     assuming `a_shape` and `b_shape` broadcast to `out_shape`.
 
     Args:
+    ----
         fn: function mapping two floats to float to apply
         out (array): storage for `out` tensor
         out_shape (array): shape for `out` tensor
@@ -308,8 +312,11 @@ def tensor_zip(fn: Callable[[float, float], float]) -> Any:
         b_strides (array): strides for `b` tensor
 
     Returns:
+    -------
         None: Fills in `out`
+
     """
+
     def _zip(
         out: Storage,
         out_shape: Shape,
@@ -346,6 +353,7 @@ def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
     * `out_shape` will be the same as `a_shape` except with `reduce_dim` turned to size `1`.
 
     Args:
+    ----
         fn: reduction function mapping two floats to float
         out (array): storage for `out` tensor
         out_shape (array): shape for `out` tensor
@@ -356,8 +364,11 @@ def tensor_reduce(fn: Callable[[float, float], float]) -> Any:
         reduce_dim (int): dimension to reduce out
 
     Returns:
+    -------
         None: Fills in `out`
+
     """
+
     def _reduce(
         out: Storage,
         out_shape: Shape,

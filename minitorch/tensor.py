@@ -291,7 +291,6 @@ class Tensor:
         """
         return self._tensor.shape
 
-
     @property
     def dims(self) -> int:
         """Returns: int: dimensionality of the tensor"""
@@ -332,24 +331,30 @@ class Tensor:
         return self * b
 
     def all(self, dim: Optional[int] = None) -> Tensor:
+        """Compute the product over dimension `dim`"""
         if dim is None:
             return All.apply(self.view(self.size), self._ensure_tensor(0))
         else:
             return All.apply(self, self._ensure_tensor(dim))
 
     def is_close(self, y: Tensor) -> Tensor:
+        """Check if the tensor is close to another tensor"""
         return IsClose.apply(self, y)
 
     def sigmoid(self) -> Tensor:
+        """Compute the sigmoid of the tensor"""
         return Sigmoid.apply(self)
 
     def relu(self) -> Tensor:
+        """Compute the ReLU of the tensor"""
         return ReLU.apply(self)
 
     def log(self) -> Tensor:
+        """Compute the log of the tensor"""
         return Log.apply(self)
 
     def exp(self) -> Tensor:
+        """Compute the exponential of the tensor"""
         return Exp.apply(self)
 
     def sum(self, dim: Optional[int] = None) -> Tensor:

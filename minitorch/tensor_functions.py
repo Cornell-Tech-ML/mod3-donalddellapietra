@@ -116,17 +116,18 @@ class All(Function):
                 0,
             )
 
+
 class Mul(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
-        # ASSIGN2.3
+        """Multiply two tensors"""
         ctx.save_for_backward(a, b)
         return a.f.mul_zip(a, b)
         # END ASSIGN2.3
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        # ASSIGN2.4
+        """Multiply the gradient with the other tensor"""
         a, b = ctx.saved_values
         return (
             grad_output.f.mul_zip(b, grad_output),
@@ -138,6 +139,7 @@ class Mul(Function):
 class Sigmoid(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Sigmoid forward"""
         # ASSIGN2.3
         out = t1.f.sigmoid_map(t1)
         ctx.save_for_backward(out)
@@ -146,6 +148,7 @@ class Sigmoid(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+        """Sigmoid backward"""
         # ASSIGN2.4
         sigma: Tensor = ctx.saved_values[0]
         return sigma * (-sigma + 1.0) * grad_output
@@ -155,6 +158,7 @@ class Sigmoid(Function):
 class ReLU(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """ReLU forward"""
         # ASSIGN2.3
         ctx.save_for_backward(t1)
         return t1.f.relu_map(t1)
@@ -162,6 +166,7 @@ class ReLU(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+        """ReLU backward"""
         # ASSIGN2.4
         (a,) = ctx.saved_values
         return grad_output.f.relu_back_zip(a, grad_output)
@@ -171,6 +176,7 @@ class ReLU(Function):
 class Log(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Log the tensor"""
         # ASSIGN2.3
         ctx.save_for_backward(t1)
         out = t1.f.log_map(t1)
@@ -179,7 +185,7 @@ class Log(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
-        # ASSIGN2.4
+        """Log backward"""
         (a,) = ctx.saved_values
         return grad_output.f.log_back_zip(a, grad_output)
         # END ASSIGN2.4
@@ -188,6 +194,7 @@ class Log(Function):
 class Exp(Function):
     @staticmethod
     def forward(ctx: Context, t1: Tensor) -> Tensor:
+        """Exp forward"""
         # ASSIGN2.3
         out = t1.f.exp_map(t1)
         ctx.save_for_backward(out)
@@ -196,6 +203,7 @@ class Exp(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+        """Exp backward"""
         # ASSIGN2.4
         (a,) = ctx.saved_values
         return grad_output.f.mul_zip(a, grad_output)
@@ -205,6 +213,7 @@ class Exp(Function):
 class LT(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Less than the tensor"""
         # ASSIGN2.3
         ctx.save_for_backward(a.shape, b.shape)
         return a.f.lt_zip(a, b)
@@ -212,7 +221,7 @@ class LT(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        # ASSIGN2.4
+        """Less than backward"""
         a_shape, b_shape = ctx.saved_values
         return zeros(a_shape), zeros(b_shape)
         # END ASSIGN2.4
@@ -221,6 +230,7 @@ class LT(Function):
 class EQ(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Equal the tensor"""
         # ASSIGN2.3
         ctx.save_for_backward(a.shape, b.shape)
         return a.f.eq_zip(a, b)
@@ -228,7 +238,7 @@ class EQ(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
-        # ASSIGN2.4
+        """Equal backward"""
         a_shape, b_shape = ctx.saved_values
         return zeros(a_shape), zeros(b_shape)
         # END ASSIGN2.4
@@ -237,6 +247,7 @@ class EQ(Function):
 class IsClose(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
+        """Is close the tensor"""
         # ASSIGN2.3
         return a.f.is_close_zip(a, b)
         # END ASSIGN2.3
@@ -245,6 +256,7 @@ class IsClose(Function):
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, order: Tensor) -> Tensor:
+        """Permute the tensor"""
         # ASSIGN2.3
         ctx.save_for_backward(order)
         return a._new(a._tensor.permute(*[int(order[i]) for i in range(order.size)]))
@@ -252,6 +264,7 @@ class Permute(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        """Permute backward"""
         # ASSIGN2.4
         order: Tensor = ctx.saved_values[0]
         order2: List[int] = [
@@ -274,7 +287,6 @@ class Sum(Function):
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         """Sum the gradient along a dimension"""
         return grad_output, 0.0
-
 
 
 class View(Function):

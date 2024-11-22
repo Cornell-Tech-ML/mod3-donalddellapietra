@@ -38,11 +38,14 @@ def index_to_position(index: Index, strides: Strides) -> int:
     storage based on strides.
 
     Args:
+    ----
         index : index tuple of ints
         strides : tensor strides
 
     Returns:
+    -------
         Position in storage
+
     """
     position = 0
     for ind, stride in zip(index, strides):
@@ -56,9 +59,11 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     It may not be the inverse of `index_to_position`.
 
     Args:
+    ----
         ordinal: ordinal position to convert.
         shape : tensor shape
         out_index : return index corresponding to position.
+
     """
     cur_ord = ordinal + 0
     for i in range(len(shape) - 1, -1, -1):
@@ -74,13 +79,16 @@ def broadcast_index(
     into `shape` following broadcasting rules.
 
     Args:
+    ----
         big_index : multidimensional index of bigger tensor
         big_shape : tensor shape of bigger tensor
         shape : tensor shape of smaller tensor
         out_index : multidimensional index of smaller tensor
 
     Returns:
+    -------
         None
+
     """
     for i, s in enumerate(shape):
         if s > 1:
@@ -93,14 +101,18 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     """Broadcast two shapes to create a new union shape.
 
     Args:
+    ----
         shape1 : first shape
         shape2 : second shape
 
     Returns:
+    -------
         broadcasted shape
 
     Raises:
+    ------
         IndexingError : if cannot broadcast
+
     """
     a, b = shape1, shape2
     m = max(len(a), len(b))
@@ -117,8 +129,6 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
                 raise IndexingError(f"Broadcast failure {a} {b}")
             c_rev[i] = max(a_rev[i], b_rev[i])
     return tuple(reversed(c_rev))
-
-
 
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
@@ -238,13 +248,17 @@ class TensorData:
         """Permute the dimensions of the tensor.
 
         Args:
+        ----
             order (list): a permutation of the dimensions
 
         Returns:
+        -------
             New `TensorData` with the same storage and a new dimension order.
+
         """
-        assert list(sorted(order)) == list(range(len(self.shape))), \
-            f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
+        assert list(sorted(order)) == list(
+            range(len(self.shape))
+        ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
 
         return TensorData(
             self._storage,

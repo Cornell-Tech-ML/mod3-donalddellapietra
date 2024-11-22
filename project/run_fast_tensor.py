@@ -64,14 +64,14 @@ class Linear(minitorch.Module):
         # raise NotImplementedError("Need to implement for Task 3.5")
         # Get shapes
         batch_size = x.shape[0]
-        
+
         # Matrix multiply weights with input
         out = x @ self.weights.value
-        
+
         # Add bias to each row
         # Need to broadcast bias across batch dimension
         out = out + self.bias.value.view(1, self.out_size)
-        
+
         return out
 
 
