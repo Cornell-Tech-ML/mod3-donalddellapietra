@@ -43,6 +43,8 @@ Average time for reduce cuda: 0.015866 seconds
 
 Note that I was using a slow gpu for these tests, so the cuda times may not be representative.
 
+NOTE: when I raised the batch size, the average epoch time for GPU decreased to 0.345040 seconds.
+
 SIMPLE DATASET
 
 Epoch  0  loss  6.823333593225619 correct 31
