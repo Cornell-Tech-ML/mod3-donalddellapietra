@@ -1,6 +1,7 @@
 import random
 
 import numba
+import time
 
 import minitorch
 
@@ -29,8 +30,24 @@ class Network(minitorch.Module):
         self.layer3 = Linear(hidden, 1, backend)
 
     def forward(self, x):
-        # TODO: Implement for Task 3.5.
-        raise NotImplementedError("Need to implement for Task 3.5")
+        # # TODO: Implement for Task 3.5.
+        # raise NotImplementedError("Need to implement for Task 3.5")
+        # Pass through the first layer and apply ReLU activation
+        # x = self.layer1.forward(x)
+        # x = minitorch.relu(x)
+
+        # # Pass through the second layer and apply ReLU activation
+        # x = self.layer2.forward(x)
+        # x = minitorch.relu(x)
+
+        # # Pass through the third layer (output layer)
+        # x = self.layer3.forward(x)
+        middle = self.layer1.forward(x).relu()
+        end = self.layer2.forward(middle).relu()
+        return self.layer3.forward(end).sigmoid()
+
+
+        return x
 
 
 class Linear(minitorch.Module):
@@ -44,7 +61,18 @@ class Linear(minitorch.Module):
 
     def forward(self, x):
         # TODO: Implement for Task 3.5.
-        raise NotImplementedError("Need to implement for Task 3.5")
+        # raise NotImplementedError("Need to implement for Task 3.5")
+        # Get shapes
+        batch_size = x.shape[0]
+
+        # Matrix multiply weights with input
+        out = x @ self.weights.value
+
+        # Add bias to each row
+        # Need to broadcast bias across batch dimension
+        out = out + self.bias.value.view(1, self.out_size)
+
+        return out
 
 
 class FastTrain:
@@ -62,10 +90,14 @@ class FastTrain:
     def train(self, data, learning_rate, max_epochs=500, log_fn=default_log_fn):
         self.model = Network(self.hidden_layers, self.backend)
         optim = minitorch.SGD(self.model.parameters(), learning_rate)
-        BATCH = 10
+        BATCH = 64
         losses = []
 
+        epoch_times = []
+
         for epoch in range(max_epochs):
+            start_time = time.time()  # Start timing the epoch
+
             total_loss = 0.0
             c = list(zip(data.X, data.y))
             random.shuffle(c)
@@ -88,6 +120,9 @@ class FastTrain:
                 optim.step()
 
             losses.append(total_loss)
+
+            epoch_time = time.time() - start_time
+            epoch_times.append(epoch_time)
             # Logging
             if epoch % 10 == 0 or epoch == max_epochs:
                 X = minitorch.tensor(data.X, backend=self.backend)
@@ -96,6 +131,9 @@ class FastTrain:
                 y2 = minitorch.tensor(data.y)
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
                 log_fn(epoch, total_loss, correct, losses)
+
+        average_epoch_time = sum(epoch_times) / len(epoch_times)
+        print(f"Average epoch time: {average_epoch_time:.6f} seconds")
 
 
 if __name__ == "__main__":
@@ -116,7 +154,7 @@ if __name__ == "__main__":
     if args.DATASET == "xor":
         data = minitorch.datasets["Xor"](PTS)
     elif args.DATASET == "simple":
-        data = minitorch.datasets["Simple"].simple(PTS)
+        data = minitorch.datasets["Simple"](PTS)
     elif args.DATASET == "split":
         data = minitorch.datasets["Split"](PTS)
 
